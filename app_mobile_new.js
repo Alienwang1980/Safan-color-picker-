@@ -1380,36 +1380,12 @@ class SafanColorPickerMobile {
       const savedContainerBg = container.style.background;
       container.style.background = '#ffffff';
 
-      // 逐个截图前：
-      // 1. 隐藏按钮类元素（不出现可点击的元素）
-      // 2. 在每个按钮位置插入链接文字（分两行）
+      // 逐个截图前：隐藏所有购买按钮（PDF 里不保留链接）
       const buyBtns = container.querySelectorAll('.buy-btn');
-      const linkPlaceholders = [];
+      const origBtnDisplays = [];
       buyBtns.forEach(el => {
-        const href = el.getAttribute('href') || '';
-        // 如果是在颜色列表中的购买按钮：直接替换按钮文字为链接
-        const isInColors = el.closest('.detail-section-colors') !== null;
-        if (isInColors) {
-          // 记录原始内容以便恢复
-          linkPlaceholders.push({ el, origDisplay: el.style.display, origInner: el.innerHTML, isColorBtn: true });
-          if (href) {
-            el.style.display = 'inline-flex';
-            el.innerHTML = `<span style="font-size:8px;color:#3a7bd5;text-decoration:underline;">购买: ${href}</span>`;
-          }
-        } else {
-          // 其他区域（部件网格、其他配件）：隐藏按钮，在父容器末尾插链接文字
-          el.style.display = 'none';
-          const parent = el.parentElement;
-          if (parent && href) {
-            const wrap = document.createElement('div');
-            wrap.style.cssText = 'font-size:8px;color:#999;line-height:1.4;margin-top:1px;';
-            wrap.innerHTML = `<div>购买:</div><div style="word-break:break-all;">${href}</div>`;
-            parent.appendChild(wrap);
-            linkPlaceholders.push({ el, origDisplay: el.style.display, origInner: el.innerHTML, isColorBtn: false, wrap });
-          } else {
-            linkPlaceholders.push({ el, origDisplay: el.style.display, origInner: el.innerHTML, isColorBtn: false });
-          }
-        }
+        origBtnDisplays.push(el.style.display);
+        el.style.display = 'none';
       });
 
       // 紧凑排版样式覆盖（减少间距改善空间利用）
@@ -1454,16 +1430,8 @@ class SafanColorPickerMobile {
         // 恢复原始主题和背景
         if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
         container.style.background = savedContainerBg;
-        // 恢复按钮显示和清理插入的链接文字
-        buyBtns.forEach(el => el.style.display = '');
-        linkPlaceholders.forEach(item => {
-          if (item.isColorBtn) {
-            item.el.style.display = item.origDisplay || '';
-            item.el.innerHTML = item.origInner;
-          } else if (item.wrap) {
-            item.wrap.remove();
-          }
-        });
+        // 恢复按钮显示
+        buyBtns.forEach((el, i) => el.style.display = origBtnDisplays[i] || '');
         // 移除紧凑排版样式
         const compactStyle = document.getElementById(compactStyleId);
         if (compactStyle) compactStyle.remove();
