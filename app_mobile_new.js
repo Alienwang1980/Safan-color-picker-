@@ -1250,11 +1250,15 @@ class SafanColorPickerMobile {
       const buyUrl = `https://so.m.jd.com/ware/search.action?keyword=${encodeURIComponent(searchKeyword)}`;
       html += `
         <div class="color-list-item">
-          <span class="cls-swatch" style="background:${g.hex}"></span>
-          <span class="cls-name">${g.name}</span>
-          ${g.code ? `<span class="cls-code">${g.code}</span>` : ''}
-          ${g.groupKey ? `<span class="cls-group">${g.groupKey.replace('PLA ', '')}</span>` : ''}
-          <a class="buy-btn" href="${buyUrl}" target="_blank" rel="noopener">购买</a>
+          <div class="cli-row1">
+            <span class="cls-swatch" style="background:${g.hex}"></span>
+            <span class="cls-name">${g.name}</span>
+            ${g.code ? `<span class="cls-code">${g.code}</span>` : ''}
+            ${g.groupKey ? `<span class="cls-group">${g.groupKey.replace('PLA ', '')}</span>` : ''}
+          </div>
+          <div class="cli-row2">
+            <a class="buy-btn" href="${buyUrl}" target="_blank" rel="noopener">购买</a>
+          </div>
         </div>
       `;
     });
@@ -1400,7 +1404,7 @@ class SafanColorPickerMobile {
       });
 
       // 强制颜色列表的文字颜色为深色（解决 CSS 变量在 html2canvas 中不生效的问题）
-      const colorTexts = container.querySelectorAll('.cls-name, .cls-code, .cls-group, .oli-name, .oli-spec');
+      const colorTexts = container.querySelectorAll('.cls-name, .cls-code, .cls-group, .oli-name, .oli-spec, .cli-row2 a');
       const savedColorTexts = [];
       colorTexts.forEach(el => {
         savedColorTexts.push({ el, color: el.style.color });
@@ -1420,7 +1424,9 @@ class SafanColorPickerMobile {
           .part-grid { gap:4px !important; padding:4px 6px !important; }
           .part-card-info { padding:1px 3px 3px !important; }
           .detail-section-colors { padding:0 6px 4px !important; }
-          .color-list-item { padding:4px 6px !important; min-height:32px !important; }
+          .color-list-item { padding:6px 6px !important; min-height:auto !important; }
+          .cli-row1 { display:flex; align-items:center; gap:6px; }
+          .cli-row2 { margin-top:2px; }
           .detail-section-others { padding:0 6px 16px !important; }
           .other-list-item { padding:4px 6px !important; min-height:36px !important; }
           .detail-header-actions { display:none !important; }
