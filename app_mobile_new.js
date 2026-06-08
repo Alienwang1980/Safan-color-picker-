@@ -1399,6 +1399,14 @@ class SafanColorPickerMobile {
         }
       });
 
+      // 强制颜色列表的文字颜色为深色（解决 CSS 变量在 html2canvas 中不生效的问题）
+      const colorTexts = container.querySelectorAll('.cls-name, .cls-code, .cls-group, .oli-name, .oli-spec');
+      const savedColorTexts = [];
+      colorTexts.forEach(el => {
+        savedColorTexts.push({ el, color: el.style.color });
+        el.style.color = '#1d1d1f';
+      });
+
       // 紧凑排版样式覆盖（减少间距改善空间利用）
       container.style.background = '#ffffff';
       const compactStyleId = '_pdf_compact_';
@@ -1448,6 +1456,8 @@ class SafanColorPickerMobile {
         const compactStyle = document.getElementById(compactStyleId);
         if (compactStyle) compactStyle.remove();
         if (footerActions) footerActions.style.display = '';
+        // 恢复颜色文字样式
+        savedColorTexts.forEach(({ el, color }) => el.style.color = color);
         if (btn) btn.innerHTML = origText;
 
         try {
