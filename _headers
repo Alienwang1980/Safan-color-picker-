@@ -1,0 +1,6 @@
+/spec/*
+  Content-Type: image/jpeg
+
+# 让 Cloudflare 对 glb 启用 gzip 压缩
+/*.glb
+  Content-Type: model/gltf-binary

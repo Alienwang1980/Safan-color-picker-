@@ -1,0 +1,1342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Safan Color Picker 手机版</title>
+  <script>
+    // FOUC 预防：页面渲染前恢复主题
+    (function(){
+      var saved = localStorage.getItem('app-theme');
+      if (saved) {
+        document.documentElement.setAttribute('data-theme', saved);
+      } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+  <style>
+    :root {
+      /* ── 颜色变量（浅色模式） ── */
+      --bg: #ffffff;
+      --surface-1: #f5f5f7;
+      --surface-2: #e8e8ec;
+      --surface-secondary: #e8e8ec;
+      --surface-tertiary: #d1d1d6;
+      --text-primary: #1d1d1f;
+      --text-secondary: #86868b;
+      --text-tertiary: #aeaeb2;
+      --text-inverse: #ffffff;
+      --accent: #3a7bd5;
+      --accent-bg: #eef4ff;
+      --danger: #ff3b30;
+      --success: #34c759;
+      --warning: #ff9f0a;
+      --border: rgba(0, 0, 0, 0.08);
+      --separator: rgba(0, 0, 0, 0.05);
+
+      /* ── 间距系统 (4px 基准) ── */
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 12px;
+      --space-lg: 16px;
+      --space-xl: 20px;
+      --space-2xl: 24px;
+      --space-3xl: 32px;
+      --space-2xs: 2px;
+
+      /* ── 圆角系统 ── */
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --radius-2xl: 24px;
+      --radius-full: 999px;
+
+      /* ── 字号系统 ── */
+      --text-display: clamp(28px, 8vw, 34px);
+      --text-title: clamp(22px, 6vw, 28px);
+      --text-2xs: 8px;
+      --text-xs: clamp(10px, 2.5vw, 12px);
+      --text-sm: clamp(12px, 3vw, 13px);
+      --text-base: clamp(13px, 3.5vw, 15px);
+      --text-lg: clamp(15px, 4vw, 17px);
+      --text-xl: clamp(17px, 5vw, 22px);
+      --text-2xl: clamp(20px, 6vw, 28px);
+      /* 详情页字号覆盖（整体加大） */
+      --detail-text-sm: clamp(13px, 3.2vw, 14px);
+      --detail-text-base: clamp(14px, 3.8vw, 16px);
+      --detail-text-lg: clamp(16px, 4.2vw, 18px);
+      --detail-text-xs: clamp(11px, 2.7vw, 13px);
+
+      /* ── 图标尺寸 ── */
+      --icon-sm: 16px;
+      --icon-md: 20px;
+      --icon-lg: 24px;
+      --icon-xl: 28px;
+
+      /* ── 阴影（浅色模式） ── */
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 2px 8px rgba(0,0,0,0.06);
+
+      /* ── Logo 颜色 ── */
+      --logo-primary: #1d1d1f;
+      --logo-accent: #c9926c;
+      --logo-inverse: #ffffff;
+    }
+    [data-theme="dark"] {
+      --bg: #111114;
+      --surface: #2c2c2e;
+      --surface-secondary: #3a3a3c;
+      --surface-tertiary: #48484a;
+      --text-primary: #f5f5f7;
+      --text-secondary: #aeaeb2;
+      --text-tertiary: #636366;
+      --text-inverse: #1c1c1e;
+      --accent: #5a9cf5;
+      --accent-bg: rgba(90,156,245,0.15);
+      --border: rgba(255,255,255,0.15);
+      --separator: rgba(255,255,255,0.08);
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+      --shadow-md: 0 2px 8px rgba(0,0,0,0.4);
+      --logo-primary: #f5f5f7;
+      --logo-accent: #d4a574;
+      --logo-inverse: #1d1d1f;
+    }
+    *
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      overflow: hidden;
+      height: 100vh;
+      height: 100dvh;
+      touch-action: manipulation;
+    }
+
+    #canvas-container {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+    #canvas-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+    #canvas-container.edit-mode-blur {
+      filter: blur(6px);
+      -webkit-filter: blur(6px);
+      transition: filter 0.3s ease;
+    }
+
+    /* ===== 3D 场景提示文字 ===== */
+    #scene-hint {
+      position: fixed;
+      top: 58px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 3;
+      color: var(--text-primary);
+      font-size: var(--text-base);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      pointer-events: none;
+      transition: opacity 0.8s ease;
+      text-shadow: none;
+    }
+
+    /* ===== TOOLBAR (透明浮层) ===== */
+    #toolbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: calc(50px + env(safe-area-inset-top, 0px));
+      padding-top: env(safe-area-inset-top, 0px);
+      background: transparent;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--space-lg);
+      z-index: 100;
+    }
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+    }
+    .detail-btn {
+      background: transparent;
+      border: 1.5px solid var(--accent);
+      border-radius: var(--radius-xl);
+      padding: var(--space-xs) var(--space-lg);
+      font-size: var(--text-base);
+      font-weight: 600;
+      min-height: 44px;
+      color: var(--accent);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+    .detail-btn:active {
+      background: var(--accent-bg);
+      transform: scale(0.96);
+    }
+
+    /* ===== BOTTOM STRIP ===== */
+    #bottom-strip {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: transparent;
+      border: none;
+      z-index: 100;
+      transition: transform 0.3s ease;
+    }
+    #bottom-strip.collapsed .strip-cards {
+      max-height: 90px;
+      overflow: hidden;
+    }
+    .strip-cards {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      overflow-x: auto;
+      overflow-y: hidden;
+      overscroll-behavior-x: contain;
+      gap: 10px;
+      padding: var(--space-sm) var(--space-lg) max(14px, env(safe-area-inset-bottom, 14px));
+      max-height: 160px;
+      transition: max-height 0.25s ease, opacity 0.2s ease, transform 0.25s ease;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+    .strip-cards.hidden {
+      max-height: 0;
+      opacity: 0;
+      transform: translateY(-20px);
+      padding: 0 var(--space-lg);
+      overflow: hidden;
+      pointer-events: none;
+      transition: max-height 0.25s ease, opacity 0.2s ease, transform 0.25s ease;
+    }
+    .strip-cards::-webkit-scrollbar { display: none; }
+    .strip-card {
+      flex: 0 0 90px;
+      height: 90px;
+      border-radius: var(--radius-lg);
+      border: 2px solid transparent;
+      background: var(--surface-secondary);
+      cursor: pointer;
+      scroll-snap-align: center;
+      transition: transform 0.2s, border-color 0.2s, opacity 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .strip-card.center {
+      border-color: var(--accent);
+      box-shadow: 0 4px 16px rgba(58,123,213,0.25);
+    }
+    .strip-card.side {
+      opacity: 0.85;
+    }
+    .strip-card-colors {
+      display: flex;
+      gap: var(--space-2xs);
+      flex-wrap: wrap;
+      width: 84px;
+      justify-content: center;
+    }
+    .strip-card-swatch {
+      width: 16px;
+      height: 16px;
+border-radius: var(--radius-md);
+    }
+    /* ===== DETAIL FOOTER ===== */
+    /* ===== STRIP COLOR PICKER (替换配色库的选色面板) ===== */
+    #strip-picker {
+      display: flex;
+      flex-direction: column;
+      animation: picker-slide-up 0.3s ease-out;
+    }
+    @keyframes picker-slide-up {
+      from { transform: translateY(100%); opacity: 0; }
+      to   { transform: translateY(0);   opacity: 1; }
+    }
+    #strip-picker.slide-out {
+      animation: picker-slide-down 0.25s ease-in forwards;
+    }
+    @keyframes picker-slide-down {
+      from { transform: translateY(0);   opacity: 1; }
+      to   { transform: translateY(100%); opacity: 0; }
+    }
+    .picker-tab-bar {
+      display: flex;
+      gap: 6px;
+      padding: var(--space-sm) var(--space-lg);
+      background: transparent;
+      flex-shrink: 0;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .picker-tab-bar::-webkit-scrollbar { display: none; }
+    .picker-tab-bar .picker-tab {
+      font-size: clamp(14px, 4vw, 16px);
+      font-weight: 500;
+      color: var(--text-tertiary);
+      background: none;
+      border: none;
+      padding: var(--space-sm) 10px;
+      cursor: pointer;
+      border-radius: var(--radius-lg);
+      transition: all 0.2s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .picker-tab-bar .picker-tab.active {
+      color: #fff;
+      background: #3a7bd5;
+    }
+    .picker-cards {
+      display: flex;
+      flex-direction: row;
+      overflow-x: auto;
+      overflow-y: hidden;
+      gap: 10px;
+      padding: var(--space-sm) var(--space-lg) calc(14px + env(safe-area-inset-bottom, 0px));
+      max-height: 160px;
+      transition: max-height 0.3s ease;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+    .picker-cards::-webkit-scrollbar { display: none; }
+    .picker-swatch-card {
+      flex: 0 0 72px;
+      height: 72px;
+      border-radius: var(--radius-lg);
+      border: 2px solid transparent;
+      cursor: pointer;
+      scroll-snap-align: center;
+      transition: transform 0.2s, border-color 0.2s;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.2;
+      font-size: var(--text-xs);
+      font-weight: 600;
+      word-break: break-all;
+      position: relative;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .picker-swatch-card.selected {
+      border-color: var(--accent);
+      box-shadow: 0 4px 16px rgba(58,123,213,0.25);
+    }
+    .picker-swatch-card .pick-color-label {
+      position: relative;
+      z-index: 1;
+      padding: var(--space-2xs);
+    }
+    .picker-empty-tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: var(--space-3xl) var(--space-lg);
+      color: var(--text-tertiary);
+      font-size: var(--text-base);
+    }
+
+    #picker-close-btn {
+      background: none;
+      border: none;
+      color: var(--text-tertiary);
+      font-size: var(--text-xl);
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+    /* ===== MODAL OVERLAY ===== */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 200;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    #modal-overlay.open {
+      display: flex;
+    }
+    .modal-sheet {
+      background: var(--accent-bg);
+      border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+      width: 100%;
+      max-width: 420px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: var(--space-lg);
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+    }
+    #modal-overlay.open .modal-sheet {
+      transform: translateY(0);
+    }
+
+    /* ===== COLOR LIBRARY MODAL ===== */
+    #color-library-modal .modal-sheet {
+      min-height: 300px;
+    }
+    .modal-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: var(--space-md);
+    }
+    .modal-tab {
+      flex: 1;
+      padding: var(--space-sm) var(--space-sm);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      background: var(--accent-bg);
+      font-size: var(--text-base);
+      font-weight: 500;
+      min-height: 44px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+    .modal-tab.active {
+      background: #1a1a1a;
+      color: #fff;
+      border-color: #1a1a1a;
+    }
+    .modal-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, 56px);
+      gap: var(--space-sm);
+      justify-content: center;
+    }
+    .swatch {
+      aspect-ratio: 1;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.15s, border-color 0.15s;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .swatch-color {
+      flex: 1;
+      border-radius: 6px;
+      min-height: 0;
+    }
+    .swatch-info {
+      font-size: var(--text-xs);
+      color: #fff;
+      text-align: center;
+      padding: 2px 1px;
+      background: rgba(0,0,0,0.5);
+      line-height: 1.2;
+      min-height: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .swatch-name {
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .swatch-code {
+      opacity: 0.75;
+      font-size: var(--text-2xs);
+    }
+    .swatch:active {
+      transform: scale(0.92);
+    }
+
+    @keyframes flash-highlight {
+      0%   { border-color: var(--accent); box-shadow: 0 4px 16px rgba(58,123,213,0.25); }
+      50%  { border-color: #fff; box-shadow: 0 0 20px rgba(255,255,255,0.6); }
+      100% { border-color: var(--accent); box-shadow: 0 4px 16px rgba(58,123,213,0.25); }
+    }
+    .strip-card.flash {
+      animation: flash-highlight 0.5s ease-out;
+    }
+
+    /* Jiggle animation for edit mode */
+    @keyframes jiggle-odd {
+      0%   { transform: rotate(-1deg); }
+      50%  { transform: rotate(1.5deg); }
+      100% { transform: rotate(-1deg); }
+    }
+    @keyframes jiggle-even {
+      0%   { transform: rotate(1deg); }
+      50%  { transform: rotate(-1.5deg); }
+      100% { transform: rotate(1deg); }
+    }
+    .strip-card.jiggling {
+      animation-iteration-count: infinite;
+      animation-timing-function: ease-in-out;
+    }
+    .strip-card.jiggling.jiggle-odd {
+      animation-name: jiggle-odd;
+      animation-duration: 0.28s;
+    }
+    .strip-card.jiggling.jiggle-even {
+      animation-name: jiggle-even;
+      animation-duration: 0.32s;
+    }
+
+    /* Edit mode delete button — iOS删除样式（红色圆形背景+白色减号） */
+    .strip-card .delete-btn {
+      display: none;
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #FF3B30;
+      color: #fff;
+      font-size: var(--text-2xl);
+      font-weight: 600;
+      line-height: 24px;
+      text-align: center;
+      cursor: pointer;
+      z-index: 20;
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    body.edit-mode .strip-card .delete-btn {
+      display: block;
+    }
+
+    /* Edit mode overlay — 屏蔽模型区域，底部 strip 区域保持在遮罩上方 */
+    #edit-mode-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      /* 底部 strip 的高度动态，我们用 z-index 而不是固定底部位置 */
+      height: 100%;
+      z-index: 300;
+      background: transparent;
+      touch-action: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.25s ease, visibility 0s 0.25s;
+    }
+    body.edit-mode #edit-mode-overlay {
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.25s ease, visibility 0s 0s;
+    }
+    /* 底部 strip 浮在遮罩上方，保持可交互 */
+    body.edit-mode #bottom-strip {
+      z-index: 301;
+    }
+
+    /* 阻止iOS长按识别为图片 */
+    .strip-card img {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+      pointer-events: none;
+    }
+    .swatch.selected {
+      border-color: #1a1a1a;
+      box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1a1a1a;
+    }
+    .modal-close-row {
+      display: flex;
+      justify-content: center;
+      margin-top: 14px;
+    }
+    .modal-close-btn {
+      padding: var(--space-md) var(--space-3xl);
+      border-radius: var(--radius-2xl);
+      background: var(--accent-bg);
+      border: none;
+      font-size: var(--text-base);
+      font-weight: 500;
+      min-height: 44px;
+      color: #1a1a1a;
+      cursor: pointer;
+    }
+
+    /* ===== COLOR LIBRARY MODAL (选色弹窗 — 矮扁化) ===== */
+    #color-library-modal .modal-sheet,
+    .modal-sheet {
+      max-height: 45vh;
+      padding: var(--space-sm) var(--space-md);
+    }
+    #color-library-modal .modal-sheet {
+      min-height: unset;
+    }
+    .modal-tabs {
+      margin-bottom: 8px;
+    }
+    .modal-tab {
+      padding: var(--space-sm) var(--space-sm);
+      font-size: var(--text-base);
+      min-height: 44px;
+    }
+    .modal-grid {
+      gap: 5px;
+    }
+    .swatch {
+      aspect-ratio: unset;
+      height: 48px;
+      border-radius: 6px;
+      flex-direction: row;
+      align-items: stretch;
+      overflow: hidden;
+    }
+    .swatch-color {
+      flex: 0 0 36px;
+      border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+      min-height: unset;
+    }
+    .swatch-info {
+      flex: 1;
+      font-size: var(--text-xs);
+      padding: 2px 6px;
+      background: none;
+      min-height: unset;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: flex-start;
+    }
+    .swatch-name {
+      color: #333;
+      font-weight: 600;
+      font-size: var(--text-xs);
+    }
+    .swatch-code {
+      color: var(--text-tertiary);
+      opacity: 1;
+      font-size: var(--text-2xs);
+    }
+    .swatch:active {
+      transform: scale(0.95);
+    }
+    .swatch.selected {
+      border-color: #1a1a1a;
+      box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1a1a1a;
+    }
+    .modal-close-row {
+      margin-top: 8px;
+    }
+
+    /* ===== TOAST ===== */
+    #toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) translateY(20px);
+      background: rgba(30,30,30,0.88);
+      color: #fff;
+      padding: var(--space-sm) var(--space-xl);
+      border-radius: var(--radius-2xl);
+      font-size: var(--text-base);
+      font-weight: 500;
+      z-index: 300;
+      opacity: 0;
+      transition: opacity 0.25s, transform 0.25s;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translate(-50%, -50%) translateY(0);
+    }
+
+    /* ===== EDIT MODE TIP ===== */
+    #edit-mode-tip {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: var(--text-secondary);
+      font-size: var(--text-lg);
+      z-index: 150;
+      text-align: center;
+      padding: var(--space-md) var(--space-2xl);
+      background: rgba(255,255,255,0.9);
+      border-radius: var(--radius-lg);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.25s ease, visibility 0s 0.25s;
+    }
+    #edit-mode-tip.show {
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.25s ease, visibility 0s 0s;
+    }
+    body.edit-mode #edit-mode-tip.show {
+      z-index: 310;
+    }
+
+    /* ===== ACTION BAR (随机配色) ===== */
+    #action-bar {
+      position: fixed;
+      bottom: calc(160px + env(safe-area-inset-bottom, 0px));
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      z-index: 100;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    #action-bar.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #action-bar .action-btn {
+      pointer-events: auto;
+      padding: var(--space-sm) var(--space-xl);
+      border-radius: var(--radius-2xl);
+      background: rgba(0,0,0,0.4);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      font-size: var(--text-base);
+      font-weight: 500;
+      min-height: 44px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    #action-bar .action-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* ===== 添加配色方案圆形+号按钮 ===== */
+    .btn-add-project {
+      width: 44px;
+      height: 44px;
+      min-width: 44px;
+      border-radius: 50%;
+      background: rgba(58,123,213,0.85);
+      border: none;
+      color: #fff;
+      font-size: var(--text-2xl);
+      font-weight: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(58,123,213,0.3);
+      transition: transform 0.15s, box-shadow 0.15s;
+      position: sticky;
+      left: 0;
+      z-index: 10;
+      margin-right: 10px;
+      margin-top: auto;
+      margin-bottom: auto;
+    }
+    .btn-add-project:active {
+      transform: scale(0.95);
+    }
+    #strip-cards {
+      padding-left: var(--space-lg);
+      -webkit-touch-callout: none;
+    }
+    #strip-cards, #strip-cards * {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .strip-empty {
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+      white-space: nowrap;
+    }
+
+    
+    #detail-container {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--bg);
+      z-index: 250;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+    #detail-container.open {
+      transform: translateX(0);
+    }
+    /* --- Header --- */
+    #detail-container .detail-header-top {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--bg);
+      padding: var(--space-sm) var(--space-lg);
+      border-bottom: 1px solid var(--separator);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #btn-detail-back {
+      background: none;
+      border: none;
+      font-size: var(--text-base);
+      font-weight: 500;
+      color: var(--text-primary);
+      cursor: pointer;
+      padding: var(--space-xs) 0;
+    }
+    .detail-header-title {
+      font-size: var(--text-lg);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .detail-header-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .detail-header-actions a,
+    .detail-header-actions button {
+      background: #3a7bd5;
+      border: none;
+      border-radius: var(--radius-xl);
+      padding: 5px var(--space-lg);
+      font-size: var(--text-base);
+      font-weight: 600;
+      min-height: 36px;
+      color: #fff;
+      cursor: pointer;
+      font-family: inherit;
+      text-decoration: none;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      transition: background 0.2s;
+    }
+    .detail-header-actions a:active,
+    .detail-header-actions button:active {
+      background: #2d62b0;
+    }
+    /* --- Model Screenshot --- */
+    .detail-model-shot {
+      padding: var(--space-lg) var(--space-lg) var(--space-xs);
+      text-align: center;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    .detail-content {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .detail-model-shot img {
+      width: 50%;
+      height: auto;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      object-fit: contain;
+      background: var(--bg);
+    }
+    .detail-model-shot .download-btn {
+      display: inline-block;
+      margin-top: 10px;
+      padding: var(--space-sm) var(--space-2xl);
+      font-size: var(--text-base);
+      font-weight: 500;
+      color: var(--accent);
+      background: var(--accent-bg);
+      border-radius: var(--radius-md);
+      text-decoration: none;
+      min-height: 44px;
+      line-height: 24px;
+    }
+    /* --- Section ②: 3D主部件 — 部件网格，同色相邻 --- */
+    .part-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: var(--space-md) var(--space-sm);
+    }
+    .part-card {
+      background: var(--bg);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .part-card:active {
+      transform: scale(0.95);
+    }
+    .part-card-img {
+      width: 100%;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .part-card-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .part-card-info {
+      padding: var(--space-2xs) var(--space-xs) var(--space-xs);
+      text-align: center;
+    }
+    .part-card-name {
+      display: block;
+      font-size: var(--detail-text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+    .part-card-color {
+      display: block;
+      font-size: var(--detail-text-xs);
+      color: var(--text-secondary);
+      font-weight: 500;
+      line-height: 1.3;
+    }
+
+    /* --- Section ③: 使用颜色 — 列表式，去重 --- */
+    .detail-section-colors {
+      padding: 0 var(--space-sm) var(--space-sm);
+    }
+    .color-list-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-sm);
+      border-bottom: 1px solid var(--separator);
+      min-height: 44px;
+    }
+    .color-list-item:last-child {
+      border-bottom: none;
+    }
+    .cls-swatch {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+    }
+    .cls-name {
+      font-size: var(--detail-text-base);
+      font-weight: 600;
+      color: var(--text-primary);
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cls-group {
+      font-size: var(--detail-text-sm);
+      color: var(--text-secondary);
+      font-weight: 500;
+      background: var(--accent-bg);
+      border-radius: 3px;
+      padding: 1px 5px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .cls-code {
+      font-size: var(--detail-text-sm);
+      color: var(--text-tertiary);
+      font-weight: 500;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-right: 2px;
+    }
+
+    /* --- Section ④: 其他部件 — 列表式 --- */
+    .detail-section-others {
+      padding: 0 var(--space-sm) var(--space-3xl);
+    }
+    .other-list-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-sm);
+      border-bottom: 1px solid var(--separator);
+      min-height: 52px;
+    }
+    .other-list-item:last-child {
+      border-bottom: none;
+    }
+    .oli-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      object-fit: cover;
+      flex-shrink: 0;
+      border: 1px solid var(--border);
+    }
+    .oli-info {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .oli-name {
+      font-size: var(--detail-text-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .oli-color {
+      font-size: var(--detail-text-xs);
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .oli-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      flex-shrink: 0;
+    }
+    .oli-spec {
+      font-size: var(--detail-text-sm);
+      color: var(--text-secondary);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .oli-tag {
+      font-size: var(--detail-text-sm);
+      color: var(--accent);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    /* --- 共用购买按钮 (Sections ③+④) --- */
+    .buy-btn {
+      font-size: var(--detail-text-sm);
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+      white-space: nowrap;
+      padding: 5px var(--space-sm);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--accent);
+      min-height: 32px;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .buy-btn:active {
+      background: var(--accent-bg);
+    }
+
+    /* --- 底部操作栏 (下载模型 + 导出 PDF) --- */
+    .detail-footer-actions {
+      padding: var(--space-lg) var(--space-lg) var(--space-3xl);
+      display: flex;
+      justify-content: center;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+    }
+    .detail-footer-actions a,
+    .detail-footer-actions button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-sm) var(--space-xl);
+      font-size: var(--text-base);
+      font-weight: 600;
+      min-height: 44px;
+      border-radius: var(--radius-xl);
+      text-decoration: none;
+      cursor: pointer;
+      font-family: inherit;
+      border: none;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .detail-footer-actions .footer-btn-primary {
+      background: #3a7bd5;
+      color: #fff;
+    }
+    .detail-footer-actions .footer-btn-primary:active {
+      background: #2d62b0;
+    }
+    .detail-footer-actions .footer-btn-secondary {
+      background: var(--surface-2);
+      color: var(--text-primary);
+    }
+    .detail-footer-actions .footer-btn-secondary:active {
+      background: var(--surface-tertiary);
+    }
+
+    /* ===== 打印样式 (PDF 导出) ===== */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #detail-container.open,
+      #detail-container.open * {
+        visibility: visible;
+      }
+      #detail-container {
+        position: static !important;
+        transform: none !important;
+        overflow: visible !important;
+      }
+      .detail-header-top {
+        position: static !important;
+      }
+      .detail-footer-actions {
+        display: none !important;
+      }
+      .detail-model-shot img {
+        max-width: 100% !important;
+        width: auto !important;
+      }
+      .buy-btn {
+        display: none !important;
+      }
+    }
+
+    /* 先打印预览再在打印时隐藏 */
+    .print-btn-icon {
+      margin-right: 6px;
+      font-size: 16px;
+    }
+
+    /* ===== Reduced Motion ===== */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+        transition-delay: 0s !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loading">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
+      <div class="spinner"></div>
+      <div id="loading-text">Loading... 0%</div>
+    </div>
+    <style>
+      #loading {
+        position: fixed; inset: 0; z-index: 999;
+        display: flex; align-items: center; justify-content: center;
+        background: var(--bg);
+        transition: opacity 0.4s;
+      }
+      #loading.hidden { opacity: 0; pointer-events: none; }
+      #loading-text {
+        font-size: var(--text-base); color: #888;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      }
+      .spinner {
+        width: 40px; height: 40px;
+        border: 3px solid var(--border);
+        border-top: 3px solid var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) {
+        .spinner { animation: none; }
+      }
+    </style>
+  </div>
+
+  <!-- Canvas -->
+  <div id="canvas-container"></div>
+
+  <!-- 3D 场景提示 -->
+  <div id="scene-hint"></div>
+
+  <!-- Toolbar -->
+  <div id="toolbar">
+    <div class="toolbar-left">
+<a href="https://www.safan3d.com" target="_blank" class="logo">
+        <svg style="height:24px;width:auto;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448.52 63.52">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: var(--logo-primary);
+      }
+
+      .cls-2 {
+        fill: var(--logo-accent);
+      }
+
+      .cls-3 {
+        fill: var(--logo-inverse);
+      }
+    </style>
+  </defs>
+  <g>
+    <path class="cls-1" d="M94.51,20.55h-13.76v-4.22c0-1.97-.18-3.22-.53-3.76-.35-.54-.94-.81-1.76-.81-.89,0-1.57.36-2.02,1.09-.46.73-.69,1.83-.69,3.31,0,1.9.26,3.33.77,4.29.49.96,1.89,2.12,4.19,3.48,6.59,3.91,10.74,7.12,12.46,9.63,1.71,2.51,2.57,6.56,2.57,12.14,0,4.06-.47,7.05-1.42,8.97-.95,1.92-2.79,3.54-5.51,4.84-2.72,1.3-5.89,1.95-9.5,1.95-3.96,0-7.35-.75-10.15-2.25s-4.64-3.41-5.51-5.73c-.87-2.32-1.3-5.62-1.3-9.89v-3.73h13.76v6.93c0,2.13.19,3.51.58,4.12.39.61,1.07.91,2.06.91s1.72-.39,2.2-1.16c.48-.77.72-1.92.72-3.45,0-3.35-.46-5.55-1.37-6.58-.94-1.03-3.25-2.76-6.93-5.17-3.68-2.44-6.12-4.21-7.32-5.31-1.2-1.1-2.19-2.63-2.97-4.57-.79-1.95-1.18-4.43-1.18-7.46,0-4.36.56-7.55,1.67-9.57,1.11-2.02,2.91-3.59,5.4-4.73,2.49-1.14,5.49-1.71,9.01-1.71,3.85,0,7.12.62,9.83,1.86,2.71,1.24,4.5,2.81,5.38,4.7.88,1.89,1.32,5.1,1.32,9.62v2.25Z"/>
+    <path class="cls-1" d="M125.99,3.31l8.47,56.96h-15.14l-.79-10.24h-5.3l-.89,10.24h-15.31l7.55-56.96h21.41ZM118.14,39.93c-.75-6.45-1.5-14.42-2.26-23.92-1.51,10.91-2.46,18.88-2.84,23.92h5.1Z"/>
+    <path class="cls-1" d="M136.97,3.31h25.08v11.4h-10.27v10.8h9.15v10.84h-9.15v23.92h-14.81V3.31Z"/>
+    <path class="cls-1" d="M189.8,3.31l8.47,56.96h-15.14l-.79-10.24h-5.3l-.89,10.24h-15.31l7.55-56.96h21.41ZM181.95,39.93c-.75-6.45-1.5-14.42-2.26-23.92-1.51,10.91-2.46,18.88-2.84,23.92h5.1Z"/>
+    <path class="cls-1" d="M233.85,3.31v56.96h-12.98l-7.7-25.89v25.89h-12.38V3.31h12.38l8.3,25.65V3.31h12.38Z"/>
+  </g>
+  <g>
+    <path class="cls-2" d="M284.2,23.75h-15.84v-5.53c0-3.49-.15-5.67-.45-6.55-.3-.88-1.02-1.32-2.14-1.32-.98,0-1.64.38-1.99,1.13-.35.75-.53,2.68-.53,5.79v29.23c0,2.73.18,4.53.53,5.4.35.87,1.05,1.3,2.11,1.3,1.15,0,1.94-.49,2.35-1.47.41-.98.62-2.88.62-5.72v-7.22h-3.2v-9.25h18.55v32.69h-9.95l-1.46-4.36c-1.08,1.88-2.44,3.29-4.08,4.23-1.64.94-3.58,1.41-5.82,1.41-2.66,0-5.15-.65-7.47-1.94-2.32-1.29-4.08-2.89-5.29-4.8-1.2-1.91-1.96-3.91-2.26-6-.3-2.09-.45-5.24-.45-9.42v-18.1c0-5.82.31-10.04.94-12.68.63-2.63,2.43-5.05,5.4-7.24,2.97-2.19,6.82-3.29,11.53-3.29s8.49.95,11.55,2.86c3.06,1.91,5.05,4.17,5.98,6.79.93,2.62,1.39,6.43,1.39,11.42v2.63Z"/>
+    <path class="cls-2" d="M326.53,37c0,6.12-.14,10.45-.43,13-.29,2.55-1.19,4.87-2.71,6.98-1.52,2.11-3.57,3.72-6.15,4.85s-5.59,1.69-9.03,1.69-6.19-.53-8.78-1.6-4.68-2.66-6.26-4.8c-1.58-2.13-2.52-4.45-2.82-6.96-.3-2.51-.45-6.9-.45-13.17v-10.42c0-6.12.14-10.45.43-13,.29-2.55,1.19-4.87,2.71-6.98,1.52-2.11,3.57-3.72,6.15-4.85,2.58-1.13,5.59-1.69,9.03-1.69,3.26,0,6.19.53,8.78,1.6,2.6,1.07,4.68,2.67,6.26,4.8,1.58,2.13,2.52,4.45,2.82,6.96.3,2.51.45,6.9.45,13.17v10.42ZM310.69,16.98c0-2.83-.16-4.65-.47-5.44-.31-.79-.96-1.19-1.94-1.19-.83,0-1.46.32-1.9.96-.44.64-.66,2.53-.66,5.66v28.44c0,3.54.14,5.72.43,6.55.29.83.96,1.24,2.01,1.24s1.77-.48,2.07-1.43c.3-.95.45-3.22.45-6.81v-27.99Z"/>
+  </g>
+  <g>
+    <path class="cls-1" d="M30.33,23.44c.49.5,1.13.75,1.77.75s1.28-.25,1.77-.75l2.12-2.17,2.12,2.17c.49.5,1.13.75,1.77.75s1.28-.25,1.77-.75c.98-1,.98-2.61,0-3.61l-2.12-2.17,2.12-2.17c.98-1,.98-2.61,0-3.61-.98-1-2.56-1-3.54,0l-2.12,2.17-2.12-2.17c-.98-1-2.56-1-3.54,0-.98,1-.98,2.61,0,3.61l2.12,2.17-2.12,2.17c-.98,1-.98,2.61,0,3.61Z"/>
+    <path class="cls-1" d="M10.3,23.44c.49.5,1.13.75,1.77.75s1.28-.25,1.77-.75l2.12-2.17,2.12,2.17c.49.5,1.13.75,1.77.75s1.28-.25,1.77-.75c.98-1,.98-2.61,0-3.61l-2.12-2.17,2.12-2.17c.98-1,.98-2.61,0-3.61-.98-1-2.56-1-3.54,0l-2.12,2.17-2.12-2.17c-.98-1-2.56-1-3.54,0-.98,1-.98,2.61,0,3.61l2.12,2.17-2.12,2.17c-.98,1-.98,2.61,0,3.61Z"/>
+    <path class="cls-1" d="M40.9,27.51c-.86,0-1.56.71-1.56,1.59v13.2c0,.88.7,1.59,1.56,1.59s1.56-.71,1.56-1.59v-13.2c0-.88-.7-1.59-1.56-1.59Z"/>
+    <path class="cls-1" d="M11.73,27.51c-.86,0-1.56.71-1.56,1.59v13.2c0,.88.7,1.59,1.56,1.59s1.56-.71,1.56-1.59v-13.2c0-.88-.7-1.59-1.56-1.59Z"/>
+    <path class="cls-1" d="M33.61,27.51c-.86,0-1.56.71-1.56,1.59v17.05c0,.88.7,1.59,1.56,1.59s1.56-.71,1.56-1.59v-17.05c0-.88-.7-1.59-1.56-1.59Z"/>
+    <path class="cls-1" d="M26.32,47.75c.86,0,1.56-.71,1.56-1.59v-17.05c0-.88-.7-1.59-1.56-1.59s-1.56.71-1.56,1.59v17.05c0,.88.7,1.59,1.56,1.59Z"/>
+    <path class="cls-1" d="M19.02,27.51c-.86,0-1.56.71-1.56,1.59v17.05c0,.88.7,1.59,1.56,1.59s1.56-.71,1.56-1.59v-17.05c0-.88-.7-1.59-1.56-1.59Z"/>
+    <path class="cls-1" d="M7.99,62.37h23.15c2.82,0,5.49-1.11,7.51-3.11l10.78-10.69.08-.09c2.01-2.25,3.11-5.17,3.11-8.21V11.34c0-4.5-3.59-8.16-7.99-8.16H7.99C3.59,3.18,0,6.84,0,11.34v42.87c0,4.5,3.59,8.16,7.99,8.16ZM5.19,12.51c0-2.24,1.78-4.06,3.97-4.06h34.31c2.19,0,3.97,1.82,3.97,4.06v27.08c0,1.94-.7,3.8-1.96,5.24l-4.86,4.81c-.89.88-2.07,1.37-3.31,1.37H9.04c-2.13,0-3.85-1.76-3.85-3.93V12.51Z"/>
+  </g>
+   <rect class="cls-1" x="336.61" width="111.91" height="63.47" rx="15.39" ry="15.39"/>
+  <g>
+    <rect class="cls-3" x="350.2" y="42.91" width="35.99" height="10.1" rx=".62" ry=".62"/>
+    <rect class="cls-3" x="350.2" y="27.38" width="35.99" height="9.27" rx=".62" ry=".62"/>
+    <rect class="cls-3" x="350.2" y="12.11" width="35.99" height="9.27" rx=".62" ry=".62"/>
+    <path class="cls-3" d="M418.15,11.83l.07-3.14c0-.12-.1-.23-.22-.23h-7.27c-.12,0-.22.1-.22.22l-.07,3.16c0,.12-.1.22-.22.22h-18.8c-.12,0-.22.1-.22.22v39.89c0,.12.1.22.22.22h6.09c.12,0,.22-.1.22-.22v-24.47h-.01v-.93c0-.12.1-.22.22-.22h36.77c.12,0,.22-.1.22-.22v-14.05c0-.12-.1-.22-.22-.22h-16.33c-.12,0-.22-.1-.22-.23ZM427.92,20.6h-29.79c-.12,0-.22-.1-.22-.22v-2.01c0-.12.1-.22.22-.22h29.79c.12,0,.22.1.22.22v2.01c0,.12-.1.22-.22.22Z"/>
+    <polygon class="cls-3" points="400.33 34.92 410.14 34.92 410.14 45.5 400.33 45.5 400.33 51.92 416.56 51.92 416.56 28.5 400.33 28.5 400.33 34.92"/>
+    <rect class="cls-3" x="400.33" y="36.83" width="7.27" height="6.42" rx=".13" ry=".13"/>
+    <polygon class="cls-3" points="418.42 34.92 428.23 34.92 428.23 45.5 418.42 45.5 418.42 51.92 434.65 51.92 434.65 28.5 418.42 28.5 418.42 34.92"/>
+    <rect class="cls-3" x="418.42" y="36.83" width="7.27" height="6.42" rx=".13" ry=".13"/>
+  </g>
+</svg>
+      </a>
+      <svg style="height:12px;width:auto;opacity:0.6;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 152.82 45.11">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: var(--logo-primary);
+      }
+    </style>
+  </defs>
+  <path class="cls-1" d="M2.95,9.03h19.87C18.17,15.3,10.56,21.21,0,26.75c.36.72.89,1.7,1.61,2.95,1.61,2.87,2.68,4.83,3.22,5.91,3.04-1.61,5.73-3.22,8.06-4.83v14.33h39.34v-26.95h-24.04c2.69-2.86,5.01-5.91,6.98-9.13h17.06V0H2.95v9.03ZM23.9,27.46h17.84v9.76h-17.84v-9.76Z"/>
+  <rect class="cls-1" x="62.41" y="34.1" width="39.22" height="11.01"/>
+  <rect class="cls-1" x="62.41" y="17.18" width="39.22" height="10.11"/>
+  <rect class="cls-1" x="62.41" y=".54" width="39.22" height="10.11"/>
+  <polygon class="cls-1" points="118.47 .54 109.56 45.11 121.55 45.11 130.47 .54 118.47 .54"/>
+  <polygon class="cls-1" points="141.64 34.1 148.35 .54 137.35 .54 128.44 45.11 130.22 45.11 139.43 45.11 151.03 45.11 152.82 34.1 141.64 34.1"/>
+</svg>
+    </div>
+    <div class="toolbar-right">
+      <button id="btn-detail-action" class="detail-btn">详情</button>
+    </div>
+  </div>
+
+  <!-- Edit mode 提示 -->
+  <div id="edit-mode-tip">点击 <b>−</b> 删除配色方案</div>
+
+  <!-- Edit mode 遮罩 — 屏蔽非编辑操作 -->
+  <div id="edit-mode-overlay"></div>
+
+  <!-- Bottom Strip -->
+  <div id="bottom-strip" class="">
+    <div class="strip-cards" id="strip-cards"></div>
+  </div>
+
+  <!-- Action Bar (随机配色) -->
+  <div id="action-bar">
+    <button id="btn-random-action" class="action-btn">随机配色</button>
+    <button id="btn-random-fav-action" class="action-btn" style="margin-left:10px;">🎲只随机我的颜色</button>
+  </div>
+
+  <!-- Modal Overlay -->
+  <div id="modal-overlay">
+    <div class="modal-sheet" id="modal-sheet">
+      <!-- Color Library -->
+      <div id="color-library-modal">
+        <div class="modal-tabs" id="modal-tabs">
+          <button class="modal-tab active" data-type="PLA Basic">Basic</button>
+          <button class="modal-tab" data-type="PLA Matte">Matte</button>
+          <button class="modal-tab" data-type="PLA Translucent">Translucent</button>
+        </div>
+        <div class="modal-grid" id="color-grid"></div>
+        <div class="modal-close-row">
+          <button class="modal-close-btn" id="modal-close-btn">关闭</button>
+        </div>
+      </div>
+      <!-- Color Picker (选色) -->
+      <div id="color-picker-modal" style="display:none;">
+        <div class="picker-header" id="picker-header">选择颜色</div>
+        <div class="picker-grid" id="picker-grid"></div>
+        <div class="modal-close-row">
+          <button class="modal-close-btn" id="picker-close-btn">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+<!-- 调试浮层已移除（双指缩放 bug 已修） -->
+
+  <!-- 详情全屏页容器 -->
+  <div id="detail-container"></div>
+
+  <!-- Color Data -->
+  <script src="colors.js"></script>
+
+  <!-- PDF 导出依赖 -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/3.0.3/jspdf.umd.min.js"></script>
+
+  <!-- importmap -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <!-- Module -->
+  <script type="module" src="app_mobile_new.js?v=20260615"></script>
+</body>
+</html>

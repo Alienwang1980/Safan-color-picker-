@@ -1,0 +1,55 @@
+{
+  "name": "safan-colorpicker",
+  "private": true,
+  "description": "Safan ColorPicker 3D 用色配置工具 — 手机版",
+  "scripts": {
+    "lint": "eslint '**/*.js'",
+    "lint:fix": "eslint '**/*.js' --fix",
+    "format": "prettier --write '**/*.{js,html,md,yml,json}'",
+    "format:check": "prettier --check '**/*.{js,html,md,yml,json}'",
+    "start": "python3 -m http.server 8080"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.2.0"
+  },
+  "eslintConfig": {
+    "env": {
+      "browser": true,
+      "es2020": true
+    },
+    "extends": [
+      "eslint:recommended",
+      "prettier"
+    ],
+    "parserOptions": {
+      "ecmaVersion": 2020,
+      "sourceType": "module"
+    },
+    "globals": {
+      "THREE": "readonly"
+    },
+    "rules": {
+      "no-unused-vars": ["warn", { "args": "none", "varsIgnorePattern": "^_" }],
+      "no-undef": "error",
+      "no-var": "error",
+      "prefer-const": "error",
+      "no-duplicate-imports": "error",
+      "eqeqeq": ["error", "smart"],
+      "curly": ["error", "multi-line"],
+      "no-console": "off",
+      "semi": ["error", "always"],
+      "quotes": ["error", "single", { "avoidEscape": true }],
+      "indent": ["off"],
+      "comma-dangle": ["warn", "always-multiline"],
+      "no-else-return": "warn",
+      "no-throw-literal": "error"
+    },
+    "ignorePatterns": [
+      "node_modules/",
+      "Models/",
+      "Logo/"
+    ]
+  }
+}
