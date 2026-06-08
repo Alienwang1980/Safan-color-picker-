@@ -1250,15 +1250,11 @@ class SafanColorPickerMobile {
       const buyUrl = `https://so.m.jd.com/ware/search.action?keyword=${encodeURIComponent(searchKeyword)}`;
       html += `
         <div class="color-list-item">
-          <div class="cli-row1">
-            <span class="cls-swatch" style="background:${g.hex}"></span>
-            <span class="cls-name">${g.name}</span>
-            ${g.code ? `<span class="cls-code">${g.code}</span>` : ''}
-            ${g.groupKey ? `<span class="cls-group">${g.groupKey.replace('PLA ', '')}</span>` : ''}
-          </div>
-          <div class="cli-row2">
-            <a class="buy-btn" href="${buyUrl}" target="_blank" rel="noopener">购买</a>
-          </div>
+          <span class="cls-swatch" style="background:${g.hex}"></span>
+          <span class="cls-name">${g.name}</span>
+          ${g.code ? `<span class="cls-code">${g.code}</span>` : ''}
+          ${g.groupKey ? `<span class="cls-group">${g.groupKey.replace('PLA ', '')}</span>` : ''}
+          <a class="buy-btn" href="${buyUrl}" target="_blank" rel="noopener">购买</a>
         </div>
       `;
     });
@@ -1391,24 +1387,29 @@ class SafanColorPickerMobile {
       const linkPlaceholders = [];
       buyBtns.forEach(el => {
         const href = el.getAttribute('href') || '';
-        el.style.display = 'none';
-        // 在按钮的父容器末尾追加链接文字
-        const parent = el.parentElement;
-        if (parent && href) {
-          const wrap = document.createElement('div');
-          wrap.style.cssText = 'font-size:8px;color:#999;line-height:1.4;margin-top:1px;';
-          wrap.innerHTML = `<div>购买:</div><div style="word-break:break-all;">${href}</div>`;
-          parent.appendChild(wrap);
-          linkPlaceholders.push(wrap);
+        // 如果是在颜色列表中的购买按钮：直接替换按钮文字为链接
+        const isInColors = el.closest('.detail-section-colors') !== null;
+        if (isInColors) {
+          // 记录原始内容以便恢复
+          linkPlaceholders.push({ el, origDisplay: el.style.display, origInner: el.innerHTML, isColorBtn: true });
+          if (href) {
+            el.style.display = 'inline-flex';
+            el.innerHTML = `<span style="font-size:8px;color:#3a7bd5;text-decoration:underline;">购买: ${href}</span>`;
+          }
+        } else {
+          // 其他区域（部件网格、其他配件）：隐藏按钮，在父容器末尾插链接文字
+          el.style.display = 'none';
+          const parent = el.parentElement;
+          if (parent && href) {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'font-size:8px;color:#999;line-height:1.4;margin-top:1px;';
+            wrap.innerHTML = `<div>购买:</div><div style="word-break:break-all;">${href}</div>`;
+            parent.appendChild(wrap);
+            linkPlaceholders.push({ el, origDisplay: el.style.display, origInner: el.innerHTML, isColorBtn: false, wrap });
+          } else {
+            linkPlaceholders.push({ el, origDisplay: el.style.display, origInner: el.innerHTML, isColorBtn: false });
+          }
         }
-      });
-
-      // 强制颜色列表的文字颜色为深色（解决 CSS 变量在 html2canvas 中不生效的问题）
-      const colorTexts = container.querySelectorAll('.cls-name, .cls-code, .cls-group, .oli-name, .oli-spec, .cli-row2 a');
-      const savedColorTexts = [];
-      colorTexts.forEach(el => {
-        savedColorTexts.push({ el, color: el.style.color });
-        el.style.color = '#1d1d1f';
       });
 
       // 紧凑排版样式覆盖（减少间距改善空间利用）
@@ -1424,9 +1425,7 @@ class SafanColorPickerMobile {
           .part-grid { gap:4px !important; padding:4px 6px !important; }
           .part-card-info { padding:1px 3px 3px !important; }
           .detail-section-colors { padding:0 6px 4px !important; }
-          .color-list-item { padding:6px 6px !important; min-height:auto !important; }
-          .cli-row1 { display:flex; align-items:center; gap:6px; }
-          .cli-row2 { margin-top:2px; }
+          .color-list-item { padding:4px 6px !important; min-height:32px !important; }
           .detail-section-others { padding:0 6px 16px !important; }
           .other-list-item { padding:4px 6px !important; min-height:36px !important; }
           .detail-header-actions { display:none !important; }
@@ -1457,13 +1456,18 @@ class SafanColorPickerMobile {
         container.style.background = savedContainerBg;
         // 恢复按钮显示和清理插入的链接文字
         buyBtns.forEach(el => el.style.display = '');
-        linkPlaceholders.forEach(el => el.remove());
+        linkPlaceholders.forEach(item => {
+          if (item.isColorBtn) {
+            item.el.style.display = item.origDisplay || '';
+            item.el.innerHTML = item.origInner;
+          } else if (item.wrap) {
+            item.wrap.remove();
+          }
+        });
         // 移除紧凑排版样式
         const compactStyle = document.getElementById(compactStyleId);
         if (compactStyle) compactStyle.remove();
         if (footerActions) footerActions.style.display = '';
-        // 恢复颜色文字样式
-        savedColorTexts.forEach(({ el, color }) => el.style.color = color);
         if (btn) btn.innerHTML = origText;
 
         try {
